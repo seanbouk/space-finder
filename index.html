@@ -93,24 +93,45 @@
   }
 
   .weight-row {
+    font-size: 0.8em;
+    margin-bottom: 0.3em;
+  }
+  .weight-row .w-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.15em;
+  }
+  .weight-row .w-name {
+    color: #ccc;
+  }
+  .weight-row .w-desc {
+    color: #555;
+    font-size: 0.9em;
+  }
+  .weight-row .w-slider-row {
     display: flex;
     align-items: center;
-    gap: 0.6em;
-    font-size: 0.8em;
+    gap: 0.4em;
   }
-  .weight-row label {
-    width: 90px;
+  .weight-row .w-end {
+    color: #555;
+    font-size: 0.8em;
     flex-shrink: 0;
+    width: 60px;
+  }
+  .weight-row .w-end-r {
+    text-align: right;
   }
   .weight-row input[type="range"] {
     flex: 1;
     accent-color: #668;
   }
   .weight-row .wval {
-    width: 40px;
-    text-align: right;
-    color: #888;
+    width: 30px;
+    text-align: center;
+    color: #666;
     font-variant-numeric: tabular-nums;
+    font-size: 0.85em;
   }
 
   .stats {
@@ -193,29 +214,64 @@
     <h2>Weights</h2>
     <div class="weight-group">
       <div class="weight-row">
-        <label>Density</label>
-        <input type="range" id="w-density" min="0" max="200" value="100">
-        <span class="wval" id="wv-density">100</span>
+        <div class="w-header">
+          <span class="w-name">Density</span>
+          <span class="w-desc">how much to pack in houses</span>
+        </div>
+        <div class="w-slider-row">
+          <span class="w-end w-end-r">sparse</span>
+          <input type="range" id="w-density" min="0" max="200" value="100">
+          <span class="wval" id="wv-density">100</span>
+          <span class="w-end">packed</span>
+        </div>
       </div>
       <div class="weight-row">
-        <label>Vista</label>
-        <input type="range" id="w-vista" min="0" max="20" value="5" step="0.5">
-        <span class="wval" id="wv-vista">5</span>
+        <div class="w-header">
+          <span class="w-name">Vista</span>
+          <span class="w-desc">penalise long straight corridors</span>
+        </div>
+        <div class="w-slider-row">
+          <span class="w-end w-end-r">ignore</span>
+          <input type="range" id="w-vista" min="0" max="20" value="5" step="0.5">
+          <span class="wval" id="wv-vista">5</span>
+          <span class="w-end">punish</span>
+        </div>
       </div>
       <div class="weight-row">
-        <label>Enclosure</label>
-        <input type="range" id="w-enclosure" min="0" max="20" value="4" step="0.5">
-        <span class="wval" id="wv-enclosure">4</span>
+        <div class="w-header">
+          <span class="w-name">Enclosure</span>
+          <span class="w-desc">reward bends and corners in paths</span>
+        </div>
+        <div class="w-slider-row">
+          <span class="w-end w-end-r">ignore</span>
+          <input type="range" id="w-enclosure" min="0" max="20" value="4" step="0.5">
+          <span class="wval" id="wv-enclosure">4</span>
+          <span class="w-end">reward</span>
+        </div>
       </div>
       <div class="weight-row">
-        <label>Plaza</label>
-        <input type="range" id="w-plaza" min="0" max="20" value="3" step="0.5">
-        <span class="wval" id="wv-plaza">3</span>
+        <div class="w-header">
+          <span class="w-name">Plaza</span>
+          <span class="w-desc">penalise wide open 2&times;2 white blocks</span>
+        </div>
+        <div class="w-slider-row">
+          <span class="w-end w-end-r">ignore</span>
+          <input type="range" id="w-plaza" min="0" max="20" value="3" step="0.5">
+          <span class="wval" id="wv-plaza">3</span>
+          <span class="w-end">punish</span>
+        </div>
       </div>
       <div class="weight-row">
-        <label>Dead-end</label>
-        <input type="range" id="w-deadend" min="0" max="20" value="2" step="0.5">
-        <span class="wval" id="wv-deadend">2</span>
+        <div class="w-header">
+          <span class="w-name">Dead-end</span>
+          <span class="w-desc">penalise white cells with only one way out</span>
+        </div>
+        <div class="w-slider-row">
+          <span class="w-end w-end-r">ignore</span>
+          <input type="range" id="w-deadend" min="0" max="20" value="2" step="0.5">
+          <span class="wval" id="wv-deadend">2</span>
+          <span class="w-end">punish</span>
+        </div>
       </div>
     </div>
   </div>
