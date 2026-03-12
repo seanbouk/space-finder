@@ -137,7 +137,7 @@
   }
   .weight-row .w-reset:hover { color: #aaa; border-color: #555; }
   .weight-row .wval {
-    width: 30px;
+    min-width: 30px;
     text-align: center;
     color: #666;
     font-variant-numeric: tabular-nums;
@@ -243,7 +243,7 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">sparse</span>
-          <input type="range" id="w-density" min="0" max="200" value="100" data-default="100">
+          <input type="range" id="w-density" min="0" max="1000" value="338" data-default="338">
           <span class="wval" id="wv-density">100</span>
           <button class="w-reset" data-for="w-density">reset</button>
           <span class="w-end">packed</span>
@@ -642,9 +642,15 @@ function scoreBulk() {
 
 // --- Combined score ---
 
+function densitySliderToValue(sliderVal) {
+  // 0 → 0, 1000 → 800000, logarithmic
+  if (sliderVal <= 0) return 0;
+  return Math.round(Math.pow(10, sliderVal / 1000 * Math.log10(800000)));
+}
+
 function getWeights() {
   return {
-    density:   +document.getElementById('w-density').value,
+    density:   densitySliderToValue(+document.getElementById('w-density').value),
     vista:     +document.getElementById('w-vista').value,
     enclosure: +document.getElementById('w-enclosure').value,
     plaza:     +document.getElementById('w-plaza').value,
@@ -898,7 +904,7 @@ function loadSliders() {
         const el = document.getElementById(id);
         el.value = data[id];
         const valEl = document.getElementById(id.replace('w-', 'wv-').replace('spt', 'spt-val'));
-        valEl.textContent = el.value;
+        valEl.textContent = id === 'w-density' ? densitySliderToValue(+el.value).toLocaleString() : el.value;
       }
     }
   } catch(e) {}
@@ -906,7 +912,7 @@ function loadSliders() {
 
 function updateSlider(el) {
   const valEl = document.getElementById(el.id.replace('w-', 'wv-').replace('spt', 'spt-val'));
-  valEl.textContent = el.value;
+  valEl.textContent = el.id === 'w-density' ? densitySliderToValue(+el.value).toLocaleString() : el.value;
   saveSliders();
   currentBreakdown = computeScore();
   currentScore = currentBreakdown.total;
