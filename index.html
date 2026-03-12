@@ -178,6 +178,7 @@
     <div class="controls">
       <button id="btn-start">Start</button>
       <button id="btn-reset">Reset</button>
+      <button id="btn-noise">Noise</button>
     </div>
     <div class="weight-row" style="margin-top:0.6em;">
       <label>Steps/tick</label>
@@ -403,7 +404,8 @@ function blackNeighborCount(r, c) {
 
 // --- Hard constraints ---
 
-function checkAccess() {
+function countAccessViolations() {
+  let count = 0;
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++)
       if (grid[r][c] === 1) {
@@ -411,12 +413,12 @@ function checkAccess() {
         for (const [dr, dc] of DIRS) {
           if (get(r+dr, c+dc) === 0) { ok = true; break; }
         }
-        if (!ok) return false;
+        if (!ok) count++;
       }
-  return true;
+  return count;
 }
 
-function checkConnectivity() {
+function countConnectivityViolations() {
   let startR = -1, startC = -1, whiteCount = 0;
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++)
@@ -424,7 +426,7 @@ function checkConnectivity() {
         whiteCount++;
         if (startR < 0) { startR = r; startC = c; }
       }
-  if (whiteCount <= 1) return true;
+  if (whiteCount <= 1) return 0;
 
   const visited = new Uint8Array(TOTAL);
   const queue = [startR * COLS + startC];
@@ -448,19 +450,20 @@ function checkConnectivity() {
       }
     }
   }
-  return reached === whiteCount;
+  return whiteCount - reached;
 }
 
-function checkNoDiagonalTouch() {
+function countDiagonalViolations() {
+  let count = 0;
   for (let r = 0; r < ROWS - 1; r++)
     for (let c = 0; c < COLS - 1; c++) {
       const tl = grid[r][c], tr = grid[r][c+1];
       const bl = grid[r+1][c], br = grid[r+1][c+1];
       if (tl + tr + bl + br === 2) {
-        if ((tl && br && !tr && !bl) || (tr && bl && !tl && !br)) return false;
+        if ((tl && br && !tr && !bl) || (tr && bl && !tl && !br)) count++;
       }
     }
-  return true;
+  return count;
 }
 
 // --- Soft scores (all returned as raw values, sign indicates direction) ---
@@ -650,11 +653,14 @@ function getWeights() {
   };
 }
 
+const HARD_PENALTY = 1000;
+
 function computeScore() {
-  if (!checkAccess() || !checkConnectivity() || !checkNoDiagonalTouch()) {
-    return { total: -Infinity, access: false, connected: false, diagonal: false,
-             density: 0, vista: 0, enclosure: 0, plaza: 0, deadend: 0, junction: 0, bulk: 0 };
-  }
+  const accessV = countAccessViolations();
+  const connectV = countConnectivityViolations();
+  const diagV = countDiagonalViolations();
+  const violations = accessV + connectV + diagV;
+
   const w = getWeights();
   const d = scoreDensity();
   const v = scoreVista();
@@ -664,13 +670,15 @@ function computeScore() {
   const j = scoreJunction();
   const b = scoreBulk();
 
-  const total = (d * w.density) + (-v * w.vista) + (e * w.enclosure) + (-p * w.plaza) + (-de * w.deadend) + (j * w.junction) + (-b * w.bulk);
+  const softTotal = (d * w.density) + (-v * w.vista) + (e * w.enclosure) + (-p * w.plaza) + (-de * w.deadend) + (j * w.junction) + (-b * w.bulk);
+  const total = softTotal - (violations * HARD_PENALTY);
 
   return {
     total,
-    access: true,
-    connected: true,
-    diagonal: true,
+    access: accessV === 0,
+    connected: connectV === 0,
+    diagonal: diagV === 0,
+    violations,
     density: d * w.density,
     vista: -v * w.vista,
     enclosure: e * w.enclosure,
@@ -696,7 +704,7 @@ function render() {
 
 function updateScoreDisplay() {
   const s = currentBreakdown || computeScore();
-  document.getElementById('total-score').textContent = s.total === -Infinity ? '—' : s.total.toFixed(1);
+  document.getElementById('total-score').textContent = s.total.toFixed(1);
   document.getElementById('sc-access').textContent = s.access ? 'OK' : 'FAIL';
   document.getElementById('sc-connect').textContent = s.connected ? 'OK' : 'FAIL';
   document.getElementById('sc-diagonal').textContent = s.diagonal ? 'OK' : 'FAIL';
@@ -797,6 +805,21 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById('btn-start').textContent = 'Start';
   document.getElementById('btn-start').classList.remove('active');
   initGrid();
+  currentBreakdown = computeScore();
+  currentScore = currentBreakdown.total;
+  render();
+});
+
+document.getElementById('btn-noise').addEventListener('click', () => {
+  running = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  document.getElementById('btn-start').textContent = 'Start';
+  document.getElementById('btn-start').classList.remove('active');
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      grid[r][c] = Math.random() < 0.5 ? 1 : 0;
+  stepCount = 0;
+  acceptCount = 0;
   currentBreakdown = computeScore();
   currentScore = currentBreakdown.total;
   render();
