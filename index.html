@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space Finder</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Courier New', monospace;
+    background: #111;
+    color: #aaa;
+    display: flex;
+    gap: 2em;
+    padding: 2em;
+    min-height: 100vh;
+  }
+
+  #grid-container {
+    flex-shrink: 0;
+  }
+
+  #grid {
+    display: inline-grid;
+    gap: 1px;
+    background: #333;
+    cursor: pointer;
+  }
+
+  .cell {
+    width: 22px;
+    height: 22px;
+    transition: background 0.1s;
+  }
+
+  #sidebar {
+    flex: 1;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5em;
+  }
+
+  h1 { color: #ddd; font-size: 1.3em; margin-bottom: 0.3em; }
+  h2 { color: #999; font-size: 0.9em; margin-bottom: 0.5em; text-transform: uppercase; letter-spacing: 0.1em; }
+
+  .controls {
+    display: flex;
+    gap: 0.5em;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 0.85em;
+    background: #222;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 0.4em 1em;
+    cursor: pointer;
+  }
+  button:hover { background: #333; }
+  button.active { background: #335; border-color: #66a; color: #aaf; }
+
+  .score-section {
+    background: #1a1a1a;
+    padding: 1em;
+    border: 1px solid #282828;
+  }
+
+  .score-total {
+    font-size: 1.5em;
+    color: #eee;
+    margin-bottom: 0.5em;
+  }
+
+  .score-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.2em 0;
+    font-size: 0.85em;
+  }
+  .score-row .label { color: #888; }
+  .score-row .value { color: #bbb; font-variant-numeric: tabular-nums; }
+  .score-row.hard .value { color: #a66; }
+  .score-row.positive .value { color: #6a6; }
+  .score-row.negative .value { color: #a66; }
+
+  .weight-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6em;
+  }
+
+  .weight-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    font-size: 0.8em;
+  }
+  .weight-row label {
+    width: 90px;
+    flex-shrink: 0;
+  }
+  .weight-row input[type="range"] {
+    flex: 1;
+    accent-color: #668;
+  }
+  .weight-row .wval {
+    width: 40px;
+    text-align: right;
+    color: #888;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stats {
+    font-size: 0.8em;
+    color: #666;
+    display: flex;
+    gap: 1.5em;
+  }
+
+  .rule-desc {
+    font-size: 0.75em;
+    color: #555;
+    line-height: 1.5;
+    margin-top: 0.2em;
+  }
+</style>
+</head>
+<body>
+
+<div id="grid-container">
+  <div id="grid"></div>
+</div>
+
+<div id="sidebar">
+  <div>
+    <h1>Space Finder</h1>
+    <p style="font-size:0.8em; color:#666; margin-top:0.3em;">
+      Hill-climbing toward a dense, walkable, human-scale layout.
+    </p>
+  </div>
+
+  <div>
+    <h2>Controls</h2>
+    <div class="controls">
+      <button id="btn-start">Start</button>
+      <button id="btn-reset">Reset</button>
+    </div>
+    <div class="weight-row" style="margin-top:0.6em;">
+      <label>Steps/tick</label>
+      <input type="range" id="spt" min="1" max="100" value="20">
+      <span class="wval" id="spt-val">20</span>
+    </div>
+  </div>
+
+  <div class="score-section">
+    <h2>Score</h2>
+    <div class="score-total" id="total-score">0.0</div>
+    <div class="score-row hard">
+      <span class="label">Access (hard)</span>
+      <span class="value" id="sc-access">OK</span>
+    </div>
+    <div class="score-row hard">
+      <span class="label">Connected (hard)</span>
+      <span class="value" id="sc-connect">OK</span>
+    </div>
+    <hr style="border:none; border-top:1px solid #282828; margin:0.4em 0;">
+    <div class="score-row positive">
+      <span class="label">Density</span>
+      <span class="value" id="sc-density">0</span>
+    </div>
+    <div class="score-row negative">
+      <span class="label">Vista penalty</span>
+      <span class="value" id="sc-vista">0</span>
+    </div>
+    <div class="score-row positive">
+      <span class="label">Enclosure</span>
+      <span class="value" id="sc-enclosure">0</span>
+    </div>
+    <div class="score-row negative">
+      <span class="label">Plaza penalty</span>
+      <span class="value" id="sc-plaza">0</span>
+    </div>
+    <div class="score-row negative">
+      <span class="label">Dead-end penalty</span>
+      <span class="value" id="sc-deadend">0</span>
+    </div>
+  </div>
+
+  <div>
+    <h2>Weights</h2>
+    <div class="weight-group">
+      <div class="weight-row">
+        <label>Density</label>
+        <input type="range" id="w-density" min="0" max="200" value="100">
+        <span class="wval" id="wv-density">100</span>
+      </div>
+      <div class="weight-row">
+        <label>Vista</label>
+        <input type="range" id="w-vista" min="0" max="20" value="5" step="0.5">
+        <span class="wval" id="wv-vista">5</span>
+      </div>
+      <div class="weight-row">
+        <label>Enclosure</label>
+        <input type="range" id="w-enclosure" min="0" max="20" value="4" step="0.5">
+        <span class="wval" id="wv-enclosure">4</span>
+      </div>
+      <div class="weight-row">
+        <label>Plaza</label>
+        <input type="range" id="w-plaza" min="0" max="20" value="3" step="0.5">
+        <span class="wval" id="wv-plaza">3</span>
+      </div>
+      <div class="weight-row">
+        <label>Dead-end</label>
+        <input type="range" id="w-deadend" min="0" max="20" value="2" step="0.5">
+        <span class="wval" id="wv-deadend">2</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <span>Step: <span id="stat-step">0</span></span>
+    <span>Accepted: <span id="stat-accepted">0</span></span>
+    <span>Density: <span id="stat-density">0%</span></span>
+  </div>
+
+  <div class="rule-desc">
+    <strong>Hard:</strong> Every house (black) must have a walkable (white) neighbor.
+    All walkable space must be connected.<br>
+    <strong>Density:</strong> More houses = better.<br>
+    <strong>Vista:</strong> Penalizes straight white runs &gt; 3 — long corridors feel exposed.<br>
+    <strong>Enclosure:</strong> Rewards white cells at bends and corners — they feel intimate.<br>
+    <strong>Plaza:</strong> Penalizes 2&times;2 white blocks — open lots, not cozy space.<br>
+    <strong>Dead-end:</strong> Penalizes white cells with 3 black neighbors — movement traps.<br><br>
+    Click cells to toggle manually. Adjust weights and watch the layout shift.
+  </div>
+</div>
+
+<script>
+const ROWS = 20;
+const COLS = 20;
+const TOTAL = ROWS * COLS;
+const DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
+
+// Grid: 0 = white (open/walkable), 1 = black (house)
+let grid = [];
+let cells = [];  // DOM elements
+let running = false;
+let stepCount = 0;
+let acceptCount = 0;
+let currentScore = 0;
+let currentBreakdown = null;
+
+// --- Init ---
+
+function initGrid() {
+  grid = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+  stepCount = 0;
+  acceptCount = 0;
+}
+
+function initDOM() {
+  const el = document.getElementById('grid');
+  el.style.gridTemplateColumns = `repeat(${COLS}, 22px)`;
+  el.innerHTML = '';
+  cells = [];
+  for (let r = 0; r < ROWS; r++) {
+    cells[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      const div = document.createElement('div');
+      div.className = 'cell';
+      div.addEventListener('click', () => toggleManual(r, c));
+      el.appendChild(div);
+      cells[r][c] = div;
+    }
+  }
+}
+
+// --- Grid helpers ---
+
+function get(r, c) {
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return 0; // outside = white
+  return grid[r][c];
+}
+
+function blackNeighborCount(r, c) {
+  let n = 0;
+  for (const [dr, dc] of DIRS) if (get(r+dr, c+dc) === 1) n++;
+  return n;
+}
+
+// --- Hard constraints ---
+
+function checkAccess() {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c] === 1) {
+        let ok = false;
+        for (const [dr, dc] of DIRS) {
+          if (get(r+dr, c+dc) === 0) { ok = true; break; }
+        }
+        if (!ok) return false;
+      }
+  return true;
+}
+
+function checkConnectivity() {
+  let startR = -1, startC = -1, whiteCount = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c] === 0) {
+        whiteCount++;
+        if (startR < 0) { startR = r; startC = c; }
+      }
+  if (whiteCount <= 1) return true;
+
+  const visited = new Uint8Array(TOTAL);
+  const queue = [startR * COLS + startC];
+  visited[queue[0]] = 1;
+  let reached = 1;
+  let idx = 0;
+
+  while (idx < queue.length) {
+    const key = queue[idx++];
+    const r = (key / COLS) | 0;
+    const c = key % COLS;
+    for (const [dr, dc] of DIRS) {
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+        const nk = nr * COLS + nc;
+        if (!visited[nk] && grid[nr][nc] === 0) {
+          visited[nk] = 1;
+          reached++;
+          queue.push(nk);
+        }
+      }
+    }
+  }
+  return reached === whiteCount;
+}
+
+// --- Soft scores (all returned as raw values, sign indicates direction) ---
+
+function scoreDensity() {
+  let black = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c] === 1) black++;
+  return black / TOTAL; // 0 to 1
+}
+
+function scoreVista() {
+  let penalty = 0;
+  // Horizontal runs
+  for (let r = 0; r < ROWS; r++) {
+    let run = 0;
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] === 0) { run++; }
+      else {
+        if (run > 3) penalty += (run - 3) * (run - 3);
+        run = 0;
+      }
+    }
+    if (run > 3) penalty += (run - 3) * (run - 3);
+  }
+  // Vertical runs
+  for (let c = 0; c < COLS; c++) {
+    let run = 0;
+    for (let r = 0; r < ROWS; r++) {
+      if (grid[r][c] === 0) { run++; }
+      else {
+        if (run > 3) penalty += (run - 3) * (run - 3);
+        run = 0;
+      }
+    }
+    if (run > 3) penalty += (run - 3) * (run - 3);
+  }
+  return penalty; // higher = worse
+}
+
+function scoreEnclosure() {
+  let bonus = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] !== 0) continue;
+      const n = get(r-1,c), s = get(r+1,c), w = get(r,c-1), e = get(r,c+1);
+      const count = n + s + w + e;
+      if (count === 2) {
+        // Corner (adjacent pair) vs corridor (opposite pair)
+        const isCorner = (n && w) || (n && e) || (s && w) || (s && e);
+        bonus += isCorner ? 2 : 1;
+      } else if (count === 1) {
+        bonus += 0.3;
+      }
+      // count 0 or 3: no bonus (open field or dead end)
+    }
+  return bonus;
+}
+
+function scorePlaza() {
+  let count = 0;
+  for (let r = 0; r < ROWS - 1; r++)
+    for (let c = 0; c < COLS - 1; c++)
+      if (grid[r][c] === 0 && grid[r+1][c] === 0 && grid[r][c+1] === 0 && grid[r+1][c+1] === 0)
+        count++;
+  return count; // higher = worse
+}
+
+function scoreDeadEnd() {
+  let count = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c] === 0 && blackNeighborCount(r, c) === 3)
+        count++;
+  return count; // higher = worse
+}
+
+// --- Combined score ---
+
+function getWeights() {
+  return {
+    density:   +document.getElementById('w-density').value,
+    vista:     +document.getElementById('w-vista').value,
+    enclosure: +document.getElementById('w-enclosure').value,
+    plaza:     +document.getElementById('w-plaza').value,
+    deadend:   +document.getElementById('w-deadend').value,
+  };
+}
+
+function computeScore() {
+  if (!checkAccess() || !checkConnectivity()) {
+    return { total: -Infinity, access: false, connected: false,
+             density: 0, vista: 0, enclosure: 0, plaza: 0, deadend: 0 };
+  }
+  const w = getWeights();
+  const d = scoreDensity();
+  const v = scoreVista();
+  const e = scoreEnclosure();
+  const p = scorePlaza();
+  const de = scoreDeadEnd();
+
+  const total = (d * w.density) + (-v * w.vista) + (e * w.enclosure) + (-p * w.plaza) + (-de * w.deadend);
+
+  return {
+    total,
+    access: true,
+    connected: true,
+    density: d * w.density,
+    vista: -v * w.vista,
+    enclosure: e * w.enclosure,
+    plaza: -p * w.plaza,
+    deadend: -de * w.deadend,
+    rawDensity: d,
+  };
+}
+
+// --- Rendering ---
+
+const WHITE = '#e8e0d0';
+const BLACK = '#1a1a1a';
+
+function render() {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      cells[r][c].style.background = grid[r][c] ? BLACK : WHITE;
+  updateScoreDisplay();
+}
+
+function updateScoreDisplay() {
+  const s = currentBreakdown || computeScore();
+  document.getElementById('total-score').textContent = s.total === -Infinity ? '—' : s.total.toFixed(1);
+  document.getElementById('sc-access').textContent = s.access ? 'OK' : 'FAIL';
+  document.getElementById('sc-connect').textContent = s.connected ? 'OK' : 'FAIL';
+  document.getElementById('sc-density').textContent = s.density.toFixed(1);
+  document.getElementById('sc-vista').textContent = s.vista.toFixed(1);
+  document.getElementById('sc-enclosure').textContent = s.enclosure.toFixed(1);
+  document.getElementById('sc-plaza').textContent = s.plaza.toFixed(1);
+  document.getElementById('sc-deadend').textContent = s.deadend.toFixed(1);
+  document.getElementById('stat-step').textContent = stepCount.toLocaleString();
+  document.getElementById('stat-accepted').textContent = acceptCount.toLocaleString();
+  document.getElementById('stat-density').textContent = (s.rawDensity !== undefined ? (s.rawDensity * 100).toFixed(0) : '0') + '%';
+}
+
+// --- Hill climbing ---
+
+function step() {
+  const r = (Math.random() * ROWS) | 0;
+  const c = (Math.random() * COLS) | 0;
+
+  grid[r][c] ^= 1;
+  const result = computeScore();
+  stepCount++;
+
+  if (result.total > currentScore) {
+    currentScore = result.total;
+    currentBreakdown = result;
+    acceptCount++;
+  } else {
+    grid[r][c] ^= 1; // revert
+  }
+}
+
+let rafId = null;
+
+function tick() {
+  if (!running) return;
+  const spt = +document.getElementById('spt').value;
+  for (let i = 0; i < spt; i++) step();
+  render();
+  rafId = requestAnimationFrame(tick);
+}
+
+// --- Manual toggle ---
+
+function toggleManual(r, c) {
+  grid[r][c] ^= 1;
+  currentBreakdown = computeScore();
+  currentScore = currentBreakdown.total;
+  render();
+}
+
+// --- Controls ---
+
+document.getElementById('btn-start').addEventListener('click', () => {
+  running = !running;
+  document.getElementById('btn-start').textContent = running ? 'Stop' : 'Start';
+  document.getElementById('btn-start').classList.toggle('active', running);
+  if (running) {
+    // Recompute current score with latest weights before resuming
+    currentBreakdown = computeScore();
+    currentScore = currentBreakdown.total;
+    tick();
+  }
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  running = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  document.getElementById('btn-start').textContent = 'Start';
+  document.getElementById('btn-start').classList.remove('active');
+  initGrid();
+  currentBreakdown = computeScore();
+  currentScore = currentBreakdown.total;
+  render();
+});
+
+// Weight slider labels
+for (const id of ['w-density','w-vista','w-enclosure','w-plaza','w-deadend','spt']) {
+  const el = document.getElementById(id);
+  const valEl = document.getElementById(id.replace('w-', 'wv-').replace('spt', 'spt-val'));
+  el.addEventListener('input', () => {
+    valEl.textContent = el.value;
+    // Recompute score with new weights
+    currentBreakdown = computeScore();
+    currentScore = currentBreakdown.total;
+    updateScoreDisplay();
+  });
+}
+
+// --- Boot ---
+
+initGrid();
+initDOM();
+currentBreakdown = computeScore();
+currentScore = currentBreakdown.total;
+render();
+</script>
+</body>
+</html>
