@@ -222,6 +222,10 @@
       <span class="label">Dead-end penalty</span>
       <span class="value" id="sc-deadend">0</span>
     </div>
+    <div class="score-row positive">
+      <span class="label">T-junction</span>
+      <span class="value" id="sc-junction">0</span>
+    </div>
   </div>
 
   <div>
@@ -290,6 +294,19 @@
           <span class="wval" id="wv-deadend">2</span>
           <button class="w-reset" data-for="w-deadend">reset</button>
           <span class="w-end">punish</span>
+        </div>
+      </div>
+      <div class="weight-row">
+        <div class="w-header">
+          <span class="w-name">T-junction</span>
+          <span class="w-desc">reward three-way intersections</span>
+        </div>
+        <div class="w-slider-row">
+          <span class="w-end w-end-r">ignore</span>
+          <input type="range" id="w-junction" min="0" max="20" value="3" step="0.5" data-default="3">
+          <span class="wval" id="wv-junction">3</span>
+          <button class="w-reset" data-for="w-junction">reset</button>
+          <span class="w-end">reward</span>
         </div>
       </div>
     </div>
@@ -542,6 +559,22 @@ function scorePlaza() {
   return count; // higher = worse
 }
 
+function scoreJunction() {
+  let count = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] !== 0) continue;
+      const n = get(r-1,c), s = get(r+1,c), w = get(r,c-1), e = get(r,c+1);
+      if (n + s + w + e !== 1) continue; // exactly 1 black orthogonal neighbor
+      // Check the two diagonals opposite the black direction are also black
+      if (n) { if (get(r+1,c-1) && get(r+1,c+1)) count++; }
+      else if (s) { if (get(r-1,c-1) && get(r-1,c+1)) count++; }
+      else if (w) { if (get(r-1,c+1) && get(r+1,c+1)) count++; }
+      else if (e) { if (get(r-1,c-1) && get(r+1,c-1)) count++; }
+    }
+  return count;
+}
+
 function scoreDeadEnd() {
   let count = 0;
   for (let r = 0; r < ROWS; r++)
@@ -560,13 +593,14 @@ function getWeights() {
     enclosure: +document.getElementById('w-enclosure').value,
     plaza:     +document.getElementById('w-plaza').value,
     deadend:   +document.getElementById('w-deadend').value,
+    junction:  +document.getElementById('w-junction').value,
   };
 }
 
 function computeScore() {
   if (!checkAccess() || !checkConnectivity() || !checkNoDiagonalTouch()) {
     return { total: -Infinity, access: false, connected: false, diagonal: false,
-             density: 0, vista: 0, enclosure: 0, plaza: 0, deadend: 0 };
+             density: 0, vista: 0, enclosure: 0, plaza: 0, deadend: 0, junction: 0 };
   }
   const w = getWeights();
   const d = scoreDensity();
@@ -574,8 +608,9 @@ function computeScore() {
   const e = scoreEnclosure();
   const p = scorePlaza();
   const de = scoreDeadEnd();
+  const j = scoreJunction();
 
-  const total = (d * w.density) + (-v * w.vista) + (e * w.enclosure) + (-p * w.plaza) + (-de * w.deadend);
+  const total = (d * w.density) + (-v * w.vista) + (e * w.enclosure) + (-p * w.plaza) + (-de * w.deadend) + (j * w.junction);
 
   return {
     total,
@@ -587,6 +622,7 @@ function computeScore() {
     enclosure: e * w.enclosure,
     plaza: -p * w.plaza,
     deadend: -de * w.deadend,
+    junction: j * w.junction,
     rawDensity: d,
   };
 }
@@ -614,6 +650,7 @@ function updateScoreDisplay() {
   document.getElementById('sc-enclosure').textContent = s.enclosure.toFixed(1);
   document.getElementById('sc-plaza').textContent = s.plaza.toFixed(1);
   document.getElementById('sc-deadend').textContent = s.deadend.toFixed(1);
+  document.getElementById('sc-junction').textContent = s.junction.toFixed(1);
   document.getElementById('stat-step').textContent = stepCount.toLocaleString();
   document.getElementById('stat-accepted').textContent = acceptCount.toLocaleString();
   document.getElementById('stat-density').textContent = (s.rawDensity !== undefined ? (s.rawDensity * 100).toFixed(0) : '0') + '%';
@@ -711,7 +748,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 
 // --- Slider persistence ---
 
-const SLIDER_IDS = ['w-density','w-vista','w-enclosure','w-plaza','w-deadend','spt'];
+const SLIDER_IDS = ['w-density','w-vista','w-enclosure','w-plaza','w-deadend','w-junction','spt'];
 const STORAGE_KEY = 'space-finder-weights';
 
 function saveSliders() {
