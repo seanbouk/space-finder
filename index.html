@@ -256,7 +256,7 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">ignore</span>
-          <input type="range" id="w-vista" min="0" max="20" value="5" step="0.5" data-default="5">
+          <input type="range" id="w-vista" min="0" max="1000" value="212" data-default="212">
           <span class="wval" id="wv-vista">5</span>
           <button class="w-reset" data-for="w-vista">reset</button>
           <span class="w-end">punish</span>
@@ -269,7 +269,7 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">ignore</span>
-          <input type="range" id="w-enclosure" min="0" max="20" value="4" step="0.5" data-default="4">
+          <input type="range" id="w-enclosure" min="0" max="1000" value="182" data-default="182">
           <span class="wval" id="wv-enclosure">4</span>
           <button class="w-reset" data-for="w-enclosure">reset</button>
           <span class="w-end">reward</span>
@@ -282,7 +282,7 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">ignore</span>
-          <input type="range" id="w-plaza" min="0" max="20" value="3" step="0.5" data-default="3">
+          <input type="range" id="w-plaza" min="0" max="1000" value="144" data-default="144">
           <span class="wval" id="wv-plaza">3</span>
           <button class="w-reset" data-for="w-plaza">reset</button>
           <span class="w-end">punish</span>
@@ -295,7 +295,7 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">ignore</span>
-          <input type="range" id="w-deadend" min="0" max="20" value="2" step="0.5" data-default="2">
+          <input type="range" id="w-deadend" min="0" max="1000" value="91" data-default="91">
           <span class="wval" id="wv-deadend">2</span>
           <button class="w-reset" data-for="w-deadend">reset</button>
           <span class="w-end">punish</span>
@@ -308,7 +308,7 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">ignore</span>
-          <input type="range" id="w-junction" min="0" max="20" value="3" step="0.5" data-default="3">
+          <input type="range" id="w-junction" min="0" max="1000" value="144" data-default="144">
           <span class="wval" id="wv-junction">3</span>
           <button class="w-reset" data-for="w-junction">reset</button>
           <span class="w-end">reward</span>
@@ -321,7 +321,7 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">ignore</span>
-          <input type="range" id="w-bulk" min="0" max="20" value="3" step="0.5" data-default="3">
+          <input type="range" id="w-bulk" min="0" max="1000" value="144" data-default="144">
           <span class="wval" id="wv-bulk">3</span>
           <button class="w-reset" data-for="w-bulk">reset</button>
           <span class="w-end">punish</span>
@@ -642,21 +642,20 @@ function scoreBulk() {
 
 // --- Combined score ---
 
-function densitySliderToValue(sliderVal) {
-  // 0 → 0, 1000 → 800000, logarithmic
+function logSlider(sliderVal, maxVal) {
   if (sliderVal <= 0) return 0;
-  return Math.round(Math.pow(10, sliderVal / 1000 * Math.log10(800000)));
+  return Math.round(Math.pow(10, sliderVal / 1000 * Math.log10(maxVal)));
 }
 
 function getWeights() {
   return {
-    density:   densitySliderToValue(+document.getElementById('w-density').value),
-    vista:     +document.getElementById('w-vista').value,
-    enclosure: +document.getElementById('w-enclosure').value,
-    plaza:     +document.getElementById('w-plaza').value,
-    deadend:   +document.getElementById('w-deadend').value,
-    junction:  +document.getElementById('w-junction').value,
-    bulk:      +document.getElementById('w-bulk').value,
+    density:   logSlider(+document.getElementById('w-density').value, 800000),
+    vista:     logSlider(+document.getElementById('w-vista').value, 2000),
+    enclosure: logSlider(+document.getElementById('w-enclosure').value, 2000),
+    plaza:     logSlider(+document.getElementById('w-plaza').value, 2000),
+    deadend:   logSlider(+document.getElementById('w-deadend').value, 2000),
+    junction:  logSlider(+document.getElementById('w-junction').value, 2000),
+    bulk:      logSlider(+document.getElementById('w-bulk').value, 2000),
   };
 }
 
@@ -895,6 +894,17 @@ function saveSliders() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
+const LOG_MAXES = {
+  'w-density': 800000,
+  'w-vista': 2000, 'w-enclosure': 2000, 'w-plaza': 2000,
+  'w-deadend': 2000, 'w-junction': 2000, 'w-bulk': 2000,
+};
+
+function sliderDisplayValue(id, rawVal) {
+  if (id in LOG_MAXES) return logSlider(+rawVal, LOG_MAXES[id]).toLocaleString();
+  return rawVal;
+}
+
 function loadSliders() {
   try {
     const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -904,7 +914,7 @@ function loadSliders() {
         const el = document.getElementById(id);
         el.value = data[id];
         const valEl = document.getElementById(id.replace('w-', 'wv-').replace('spt', 'spt-val'));
-        valEl.textContent = id === 'w-density' ? densitySliderToValue(+el.value).toLocaleString() : el.value;
+        valEl.textContent = sliderDisplayValue(id, el.value);
       }
     }
   } catch(e) {}
@@ -912,7 +922,7 @@ function loadSliders() {
 
 function updateSlider(el) {
   const valEl = document.getElementById(el.id.replace('w-', 'wv-').replace('spt', 'spt-val'));
-  valEl.textContent = el.id === 'w-density' ? densitySliderToValue(+el.value).toLocaleString() : el.value;
+  valEl.textContent = sliderDisplayValue(el.id, el.value);
   saveSliders();
   currentBreakdown = computeScore();
   currentScore = currentBreakdown.total;
