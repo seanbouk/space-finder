@@ -226,6 +226,10 @@
       <span class="label">T-junction</span>
       <span class="value" id="sc-junction">0</span>
     </div>
+    <div class="score-row negative">
+      <span class="label">Bulk penalty</span>
+      <span class="value" id="sc-bulk">0</span>
+    </div>
   </div>
 
   <div>
@@ -307,6 +311,19 @@
           <span class="wval" id="wv-junction">3</span>
           <button class="w-reset" data-for="w-junction">reset</button>
           <span class="w-end">reward</span>
+        </div>
+      </div>
+      <div class="weight-row">
+        <div class="w-header">
+          <span class="w-name">Bulk</span>
+          <span class="w-desc">penalise large house masses (bbox &gt; 50)</span>
+        </div>
+        <div class="w-slider-row">
+          <span class="w-end w-end-r">ignore</span>
+          <input type="range" id="w-bulk" min="0" max="20" value="3" step="0.5" data-default="3">
+          <span class="wval" id="wv-bulk">3</span>
+          <button class="w-reset" data-for="w-bulk">reset</button>
+          <span class="w-end">punish</span>
         </div>
       </div>
     </div>
@@ -584,6 +601,41 @@ function scoreDeadEnd() {
   return count; // higher = worse
 }
 
+function scoreBulk() {
+  // Find contiguous black islands via flood fill, penalise those with bounding box area > 50
+  const visited = new Uint8Array(TOTAL);
+  let penalty = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] !== 1 || visited[r * COLS + c]) continue;
+      let minR = r, maxR = r, minC = c, maxC = c;
+      const queue = [r * COLS + c];
+      visited[queue[0]] = 1;
+      let idx = 0;
+      while (idx < queue.length) {
+        const key = queue[idx++];
+        const cr = (key / COLS) | 0, cc = key % COLS;
+        if (cr < minR) minR = cr;
+        if (cr > maxR) maxR = cr;
+        if (cc < minC) minC = cc;
+        if (cc > maxC) maxC = cc;
+        for (const [dr, dc] of DIRS) {
+          const nr = cr + dr, nc = cc + dc;
+          if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+            const nk = nr * COLS + nc;
+            if (!visited[nk] && grid[nr][nc] === 1) {
+              visited[nk] = 1;
+              queue.push(nk);
+            }
+          }
+        }
+      }
+      const area = (maxR - minR + 1) * (maxC - minC + 1);
+      if (area > 50) penalty += area - 50;
+    }
+  return penalty; // higher = worse
+}
+
 // --- Combined score ---
 
 function getWeights() {
@@ -594,13 +646,14 @@ function getWeights() {
     plaza:     +document.getElementById('w-plaza').value,
     deadend:   +document.getElementById('w-deadend').value,
     junction:  +document.getElementById('w-junction').value,
+    bulk:      +document.getElementById('w-bulk').value,
   };
 }
 
 function computeScore() {
   if (!checkAccess() || !checkConnectivity() || !checkNoDiagonalTouch()) {
     return { total: -Infinity, access: false, connected: false, diagonal: false,
-             density: 0, vista: 0, enclosure: 0, plaza: 0, deadend: 0, junction: 0 };
+             density: 0, vista: 0, enclosure: 0, plaza: 0, deadend: 0, junction: 0, bulk: 0 };
   }
   const w = getWeights();
   const d = scoreDensity();
@@ -609,8 +662,9 @@ function computeScore() {
   const p = scorePlaza();
   const de = scoreDeadEnd();
   const j = scoreJunction();
+  const b = scoreBulk();
 
-  const total = (d * w.density) + (-v * w.vista) + (e * w.enclosure) + (-p * w.plaza) + (-de * w.deadend) + (j * w.junction);
+  const total = (d * w.density) + (-v * w.vista) + (e * w.enclosure) + (-p * w.plaza) + (-de * w.deadend) + (j * w.junction) + (-b * w.bulk);
 
   return {
     total,
@@ -623,6 +677,7 @@ function computeScore() {
     plaza: -p * w.plaza,
     deadend: -de * w.deadend,
     junction: j * w.junction,
+    bulk: -b * w.bulk,
     rawDensity: d,
   };
 }
@@ -651,6 +706,7 @@ function updateScoreDisplay() {
   document.getElementById('sc-plaza').textContent = s.plaza.toFixed(1);
   document.getElementById('sc-deadend').textContent = s.deadend.toFixed(1);
   document.getElementById('sc-junction').textContent = s.junction.toFixed(1);
+  document.getElementById('sc-bulk').textContent = s.bulk.toFixed(1);
   document.getElementById('stat-step').textContent = stepCount.toLocaleString();
   document.getElementById('stat-accepted').textContent = acceptCount.toLocaleString();
   document.getElementById('stat-density').textContent = (s.rawDensity !== undefined ? (s.rawDensity * 100).toFixed(0) : '0') + '%';
@@ -748,7 +804,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 
 // --- Slider persistence ---
 
-const SLIDER_IDS = ['w-density','w-vista','w-enclosure','w-plaza','w-deadend','w-junction','spt'];
+const SLIDER_IDS = ['w-density','w-vista','w-enclosure','w-plaza','w-deadend','w-junction','w-bulk','spt'];
 const STORAGE_KEY = 'space-finder-weights';
 
 function saveSliders() {

@@ -17,10 +17,12 @@ A 20x20 grid starts all white (open space). Each tick, the algorithm toggles a r
 ### Soft rules (scored, weights adjustable)
 
 - **Density** — pack in as many houses as possible
-- **Vista** — penalise long straight corridors (cubic penalty for runs > 3)
+- **Vista** — penalise long straight corridors in all four directions including diagonals (cubic penalty for runs > 3)
 - **Enclosure** — reward bends and corners in paths
 - **Plaza** — penalise wide open 2x2 white blocks
 - **Dead-end** — penalise white cells with only one way out
+- **T-junction** — reward three-way intersections with proper corner framing
+- **Bulk** — penalise large contiguous house masses (bounding box area > 50)
 
 ## Usage
 
