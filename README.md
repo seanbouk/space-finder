@@ -8,7 +8,9 @@ A hill-climbing algorithm that searches for dense, walkable, human-scale layouts
 
 A 20x20 grid starts all white (open space). Each tick, the algorithm toggles a random cell and keeps the change if the overall score improves. When a single toggle fails, it tries a compound 2-cell move — toggling a neighbour as well — which lets it break through corridors and reshape paths.
 
-### Hard rules (must never be violated)
+Hard rules are scored as countable violations rather than binary pass/fail, so the algorithm can gradually fix a broken grid (e.g. after hitting Noise to randomise).
+
+### Hard rules
 
 - **Access** — every house (black) has at least one walkable (white) neighbour
 - **Connectivity** — all walkable space forms one connected region
@@ -26,4 +28,4 @@ A 20x20 grid starts all white (open space). Each tick, the algorithm toggles a r
 
 ## Usage
 
-Open `index.html` in a browser, hit Start, and watch it go. Click cells to toggle manually. Adjust the weight sliders to steer the algorithm toward different kinds of layouts. Slider positions persist in localStorage.
+Open `index.html` in a browser, hit Start, and watch it go. Click and drag on the grid to draw — mousedown toggles a cell and sets the paint colour, then drag to keep painting. The simulation pauses while drawing and resumes on release. Hit Noise to randomise the grid and let the algorithm resolve it. Adjust the weight sliders to steer toward different layouts. Slider positions persist in localStorage.
