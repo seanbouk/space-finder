@@ -465,6 +465,52 @@ function scoreVista() {
     }
     if (run > 3) { const e = run - 3; penalty += e * e * e; }
   }
+  // Diagonal runs (top-left to bottom-right)
+  for (let startR = 0; startR < ROWS; startR++) {
+    let run = 0;
+    for (let i = 0; startR + i < ROWS && i < COLS; i++) {
+      if (grid[startR + i][i] === 0) { run++; }
+      else {
+        if (run > 3) { const e = run - 3; penalty += e * e * e; }
+        run = 0;
+      }
+    }
+    if (run > 3) { const e = run - 3; penalty += e * e * e; }
+  }
+  for (let startC = 1; startC < COLS; startC++) {
+    let run = 0;
+    for (let i = 0; i < ROWS && startC + i < COLS; i++) {
+      if (grid[i][startC + i] === 0) { run++; }
+      else {
+        if (run > 3) { const e = run - 3; penalty += e * e * e; }
+        run = 0;
+      }
+    }
+    if (run > 3) { const e = run - 3; penalty += e * e * e; }
+  }
+  // Diagonal runs (top-right to bottom-left)
+  for (let startR = 0; startR < ROWS; startR++) {
+    let run = 0;
+    for (let i = 0; startR + i < ROWS && COLS - 1 - i >= 0; i++) {
+      if (grid[startR + i][COLS - 1 - i] === 0) { run++; }
+      else {
+        if (run > 3) { const e = run - 3; penalty += e * e * e; }
+        run = 0;
+      }
+    }
+    if (run > 3) { const e = run - 3; penalty += e * e * e; }
+  }
+  for (let startC = COLS - 2; startC >= 0; startC--) {
+    let run = 0;
+    for (let i = 0; i < ROWS && startC - i >= 0; i++) {
+      if (grid[i][startC - i] === 0) { run++; }
+      else {
+        if (run > 3) { const e = run - 3; penalty += e * e * e; }
+        run = 0;
+      }
+    }
+    if (run > 3) { const e = run - 3; penalty += e * e * e; }
+  }
   return penalty; // higher = worse
 }
 
