@@ -126,6 +126,16 @@
     flex: 1;
     accent-color: #668;
   }
+  .weight-row .w-reset {
+    background: none;
+    border: 1px solid #333;
+    color: #555;
+    font-size: 0.75em;
+    padding: 0.1em 0.4em;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .weight-row .w-reset:hover { color: #aaa; border-color: #555; }
   .weight-row .wval {
     width: 30px;
     text-align: center;
@@ -171,7 +181,7 @@
     </div>
     <div class="weight-row" style="margin-top:0.6em;">
       <label>Steps/tick</label>
-      <input type="range" id="spt" min="1" max="100" value="20">
+      <input type="range" id="spt" min="1" max="100" value="20" data-default="20">
       <span class="wval" id="spt-val">20</span>
     </div>
   </div>
@@ -224,8 +234,9 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">sparse</span>
-          <input type="range" id="w-density" min="0" max="200" value="100">
+          <input type="range" id="w-density" min="0" max="200" value="100" data-default="100">
           <span class="wval" id="wv-density">100</span>
+          <button class="w-reset" data-for="w-density">reset</button>
           <span class="w-end">packed</span>
         </div>
       </div>
@@ -236,8 +247,9 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">ignore</span>
-          <input type="range" id="w-vista" min="0" max="20" value="5" step="0.5">
+          <input type="range" id="w-vista" min="0" max="20" value="5" step="0.5" data-default="5">
           <span class="wval" id="wv-vista">5</span>
+          <button class="w-reset" data-for="w-vista">reset</button>
           <span class="w-end">punish</span>
         </div>
       </div>
@@ -248,8 +260,9 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">ignore</span>
-          <input type="range" id="w-enclosure" min="0" max="20" value="4" step="0.5">
+          <input type="range" id="w-enclosure" min="0" max="20" value="4" step="0.5" data-default="4">
           <span class="wval" id="wv-enclosure">4</span>
+          <button class="w-reset" data-for="w-enclosure">reset</button>
           <span class="w-end">reward</span>
         </div>
       </div>
@@ -260,8 +273,9 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">ignore</span>
-          <input type="range" id="w-plaza" min="0" max="20" value="3" step="0.5">
+          <input type="range" id="w-plaza" min="0" max="20" value="3" step="0.5" data-default="3">
           <span class="wval" id="wv-plaza">3</span>
+          <button class="w-reset" data-for="w-plaza">reset</button>
           <span class="w-end">punish</span>
         </div>
       </div>
@@ -272,8 +286,9 @@
         </div>
         <div class="w-slider-row">
           <span class="w-end w-end-r">ignore</span>
-          <input type="range" id="w-deadend" min="0" max="20" value="2" step="0.5">
+          <input type="range" id="w-deadend" min="0" max="20" value="2" step="0.5" data-default="2">
           <span class="wval" id="wv-deadend">2</span>
+          <button class="w-reset" data-for="w-deadend">reset</button>
           <span class="w-end">punish</span>
         </div>
       </div>
@@ -648,16 +663,51 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   render();
 });
 
-// Weight slider labels
-for (const id of ['w-density','w-vista','w-enclosure','w-plaza','w-deadend','spt']) {
-  const el = document.getElementById(id);
-  const valEl = document.getElementById(id.replace('w-', 'wv-').replace('spt', 'spt-val'));
-  el.addEventListener('input', () => {
-    valEl.textContent = el.value;
-    // Recompute score with new weights
-    currentBreakdown = computeScore();
-    currentScore = currentBreakdown.total;
-    updateScoreDisplay();
+// --- Slider persistence ---
+
+const SLIDER_IDS = ['w-density','w-vista','w-enclosure','w-plaza','w-deadend','spt'];
+const STORAGE_KEY = 'space-finder-weights';
+
+function saveSliders() {
+  const data = {};
+  for (const id of SLIDER_IDS) data[id] = document.getElementById(id).value;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function loadSliders() {
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (!data) return;
+    for (const id of SLIDER_IDS) {
+      if (data[id] !== undefined) {
+        const el = document.getElementById(id);
+        el.value = data[id];
+        const valEl = document.getElementById(id.replace('w-', 'wv-').replace('spt', 'spt-val'));
+        valEl.textContent = el.value;
+      }
+    }
+  } catch(e) {}
+}
+
+function updateSlider(el) {
+  const valEl = document.getElementById(el.id.replace('w-', 'wv-').replace('spt', 'spt-val'));
+  valEl.textContent = el.value;
+  saveSliders();
+  currentBreakdown = computeScore();
+  currentScore = currentBreakdown.total;
+  updateScoreDisplay();
+}
+
+for (const id of SLIDER_IDS) {
+  document.getElementById(id).addEventListener('input', (e) => updateSlider(e.target));
+}
+
+// Reset buttons
+for (const btn of document.querySelectorAll('.w-reset')) {
+  btn.addEventListener('click', () => {
+    const el = document.getElementById(btn.dataset.for);
+    el.value = el.dataset.default;
+    updateSlider(el);
   });
 }
 
@@ -665,6 +715,7 @@ for (const id of ['w-density','w-vista','w-enclosure','w-plaza','w-deadend','spt
 
 initGrid();
 initDOM();
+loadSliders();
 currentBreakdown = computeScore();
 currentScore = currentBreakdown.total;
 render();
